@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# our name
+name=$(basename "$0")
+
+# list of installed shells
+shells='/etc/shells'
+
+# we need shell list
+if ! [ -e "$shells" ]; then
+  echo "$name: $shells does not exist"
+  exit 1
+fi
+
+# we need shell list to be regular file
+if ! [ -f "$shells" ]; then
+  echo "$name: $shells is not regular file"
+  exit 1
+fi
+
+# generate bpftrace condition for each shell
+cond="$(cat "$shells" | tail -n +2 | xargs basename -a | sort -u | awk '
+{
+  printf("%scomm == \"%s\"", or, $0)
+  or = " || "
+}
+')"
+if [ $? -ne 0 ]; then
+  echo "$name: could not generate condition"
+  exit $?
+fi
+
+# print exec* arguments for each shell command
+sudo "$HOME/bpftrace/result/bin/bpftrace" -e "
+BEGIN
+{
+  printf(\"%-20s %-20s ARGV\n\", \"PID\", \"SHELL\");
+}
+tracepoint:syscalls:sys_enter_exec*
+/$cond/
+{
+  printf(\"%-20d %-20s \", pid, comm);
+  join(args.argv);
+}
+"
