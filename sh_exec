@@ -7,18 +7,16 @@ name=$(basename "$0")
 shells='/etc/shells'
 
 # we need shell list
-if ! [ -e "$shells" ]; then
-  echo "$name: $shells does not exist"
-  exit 1
-fi
-
-# we need shell list to be regular file
 if ! [ -f "$shells" ]; then
-  echo "$name: $shells is not regular file"
+  echo "$name: $shells not a file"
   exit 1
 fi
 
 # generate bpftrace condition for each shell
+#  remove first line from file
+#  get basename of each shell path
+#  sort and remove duplicates
+#  generate bpftrace condition
 cond="$(tail -n +2 "$shells" | xargs basename -a | sort -u | awk '
 {
   printf("%scomm == \"%s\"", or, $0)
@@ -30,7 +28,7 @@ if [ $? -ne 0 ]; then
   exit $?
 fi
 
-# print exec* arguments for each shell command
+# print exec* arguments for any command run by any shell
 sudo "$HOME/bpftrace/result/bin/bpftrace" -e "
 BEGIN
 {
