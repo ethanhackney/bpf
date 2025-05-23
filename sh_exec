@@ -19,7 +19,7 @@ if ! [ -f "$shells" ]; then
 fi
 
 # generate bpftrace condition for each shell
-cond="$(cat "$shells" | tail -n +2 | xargs basename -a | sort -u | awk '
+cond="$(tail -n +2 "$shells" | xargs basename -a | sort -u | awk '
 {
   printf("%scomm == \"%s\"", or, $0)
   or = " || "
